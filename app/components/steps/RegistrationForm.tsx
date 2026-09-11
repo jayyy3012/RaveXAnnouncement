@@ -2,17 +2,25 @@ import { ArrowLeft } from "lucide-react";
 import { FormEvent, useState } from "react";
 import SpecularButton from "../SpecularButton";
 import { supabase } from "@/lib/supabase";
+import countriesData from "../../countries.json";
+import SearchableSelect from "../SearchableSelect";
 
 interface RegistrationFormProps {
   onNext: () => void;
   onPrev: () => void;
+  onAlreadyRegistered: () => void;
   formData: any;
   updateFormData: (data: any) => void;
 }
 
-export default function RegistrationForm({ onNext, onPrev, formData, updateFormData }: RegistrationFormProps) {
+export default function RegistrationForm({ onNext, onPrev, onAlreadyRegistered, formData, updateFormData }: RegistrationFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const countries = Object.keys(countriesData);
+  const cities = formData.country && (countriesData as Record<string, string[]>)[formData.country] 
+    ? (countriesData as Record<string, string[]>)[formData.country] 
+    : [];
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -30,6 +38,10 @@ export default function RegistrationForm({ onNext, onPrev, formData, updateFormD
 
       const data = await response.json();
       if (!response.ok || !data.success) {
+        if (response.status === 409 && data.message === 'Email is already registered') {
+          onAlreadyRegistered();
+          return;
+        }
         throw new Error(data.message || 'Failed to send OTP');
       }
 
@@ -59,7 +71,7 @@ export default function RegistrationForm({ onNext, onPrev, formData, updateFormD
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-gray-400">Full Name (Optional)</label>
+          <label className="text-xs text-gray-400">Full Name <span className="text-red-500">*</span></label>
           <input 
             type="text" 
             value={formData.name}
@@ -70,7 +82,7 @@ export default function RegistrationForm({ onNext, onPrev, formData, updateFormD
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-gray-400">Email *</label>
+          <label className="text-xs text-gray-400">Email <span className="text-red-500">*</span></label>
           <input 
             type="email" 
             required
@@ -82,33 +94,24 @@ export default function RegistrationForm({ onNext, onPrev, formData, updateFormD
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-gray-400">City (Optional)</label>
-          <select 
-            value={formData.city}
-            onChange={(e) => updateFormData({ city: e.target.value })}
-            className="glass-card-inner text-white rounded-lg px-4 py-3 outline-none focus:border-ravex-purple transition-colors appearance-none"
-          >
-            <option value="" disabled>Select your city</option>
-            <option value="Ahmedabad">Ahmedabad</option>
-            <option value="Mumbai">Mumbai</option>
-            <option value="Delhi">Delhi</option>
-            <option value="Bangalore">Bangalore</option>
-          </select>
+          <label className="text-xs text-gray-400">Country <span className="text-red-500">*</span></label>
+          <SearchableSelect 
+            options={countries}
+            value={formData.country || ""}
+            onChange={(value) => updateFormData({ country: value, city: "" })}
+            placeholder="Select your country"
+          />
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-gray-400">Favourite Music Genre (Optional)</label>
-          <select 
-            value={formData.genre}
-            onChange={(e) => updateFormData({ genre: e.target.value })}
-            className="glass-card-inner text-white rounded-lg px-4 py-3 outline-none focus:border-ravex-purple transition-colors appearance-none"
-          >
-            <option value="" disabled>Select genre</option>
-            <option value="Electronic">Electronic</option>
-            <option value="Techno">Techno</option>
-            <option value="House">House</option>
-            <option value="Trance">Trance</option>
-          </select>
+          <label className="text-xs text-gray-400">City <span className="text-red-500">*</span></label>
+          <SearchableSelect 
+            options={cities}
+            value={formData.city || ""}
+            onChange={(value) => updateFormData({ city: value })}
+            placeholder="Select your city"
+            disabled={!formData.country}
+          />
         </div>
 
         {error && (

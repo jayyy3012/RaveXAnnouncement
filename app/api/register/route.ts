@@ -1,16 +1,17 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabase, supabaseAdmin } from '@/lib/supabase';
 
 export async function POST(request: Request) {
   try {
     const data = await request.json();
     
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('registrations')
       .insert([
         {
           name: data.name || null,
           email: data.email,
+          country: data.country || null,
           city: data.city || null,
           genre: data.genre || null,
           base: data.base || null,
@@ -25,7 +26,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    const { count, error: countError } = await supabase
+    const { count, error: countError } = await supabaseAdmin
       .from('registrations')
       .select('*', { count: 'exact', head: true });
 

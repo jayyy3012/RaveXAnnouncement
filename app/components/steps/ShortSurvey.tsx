@@ -52,6 +52,7 @@ export default function ShortSurvey({ onNext, onPrev, formData, updateFormData }
 
       const data = await response.json();
       updateFormData({ position: data.position || 0 });
+      localStorage.removeItem("ravex_form_data");
       onNext();
     } catch (err: any) {
       console.error(err);

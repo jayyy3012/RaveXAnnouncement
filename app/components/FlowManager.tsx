@@ -5,15 +5,16 @@ import LandingPage from "./steps/LandingPage";
 import { supabase } from "@/lib/supabase";
 import RegistrationForm from "./steps/RegistrationForm";
 import EmailVerification from "./steps/EmailVerification";
-import EmailVerified from "./steps/EmailVerified";
 import ShortSurvey from "./steps/ShortSurvey";
 import SuccessPage from "./steps/SuccessPage";
+import AlreadyRegistered from "./steps/AlreadyRegistered";
 
 export default function FlowManager() {
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
+    country: "",
     city: "",
     genre: "",
     interests: [] as string[],
@@ -22,22 +23,43 @@ export default function FlowManager() {
     position: 0,
   });
 
-  const nextStep = () => setCurrentStep((prev) => Math.min(prev + 1, 6));
-  const prevStep = () => setCurrentStep((prev) => Math.max(prev - 1, 1));
+  const nextStep = () => setCurrentStep((prev) => Math.min(prev + 1, 5));
+  const goToAlreadyRegistered = () => setCurrentStep(6);
+  const prevStep = () => {
+    setCurrentStep((prev) => {
+      if (prev === 2) {
+        localStorage.removeItem("ravex_form_data");
+        setFormData({
+          name: "",
+          email: "",
+          country: "",
+          city: "",
+          genre: "",
+          interests: [] as string[],
+          base: "",
+          source: "",
+          position: 0,
+        });
+      }
+      return Math.max(prev - 1, 1);
+    });
+  };
   
   // Listen for Magic Link sign-in
   useEffect(() => {
-    // Try to restore form data on mount (in case they opened the link in the same browser)
-    const saved = localStorage.getItem("ravex_form_data");
-    if (saved) {
-      try {
-        setFormData(JSON.parse(saved));
-      } catch (e) {}
-    }
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_IN" && session) {
-        // User was authenticated (via OTP or magic link)
+        // Try to restore form data (in case they opened the link in the same browser)
+        const saved = localStorage.getItem("ravex_form_data");
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved);
+            setFormData(prev => ({ ...prev, ...parsed, email: session.user.email || parsed.email }));
+          } catch (e) {}
+        } else if (session.user?.email) {
+          // Fallback if cross-device
+          setFormData(prev => ({ ...prev, email: session.user.email || "" }));
+        }
         setCurrentStep(4); // Go to EmailVerified step
       }
     });
@@ -74,11 +96,11 @@ export default function FlowManager() {
       </div>
 
       <div className="relative z-10 w-full flex justify-center">
-        {currentStep === 2 && <RegistrationForm onNext={nextStep} onPrev={prevStep} formData={formData} updateFormData={updateFormData} />}
+        {currentStep === 2 && <RegistrationForm onNext={nextStep} onPrev={prevStep} onAlreadyRegistered={goToAlreadyRegistered} formData={formData} updateFormData={updateFormData} />}
         {currentStep === 3 && <EmailVerification onNext={nextStep} email={formData.email} />}
-        {currentStep === 4 && <EmailVerified onNext={nextStep} />}
-        {currentStep === 5 && <ShortSurvey onNext={nextStep} onPrev={prevStep} formData={formData} updateFormData={updateFormData} />}
-        {currentStep === 6 && <SuccessPage position={formData.position} />}
+        {currentStep === 4 && <ShortSurvey onNext={nextStep} onPrev={prevStep} formData={formData} updateFormData={updateFormData} />}
+        {currentStep === 5 && <SuccessPage position={formData.position} />}
+        {currentStep === 6 && <AlreadyRegistered onHome={() => setCurrentStep(1)} />}
       </div>
     </main>
   );

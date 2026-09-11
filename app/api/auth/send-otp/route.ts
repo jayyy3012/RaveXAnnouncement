@@ -16,6 +16,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, message: 'Email is required' }, { status: 400 });
     }
 
+    // 0. Check if already registered
+    const { data: existingUsers, error: checkError } = await supabaseAdmin
+      .from('registrations')
+      .select('email')
+      .eq('email', email)
+      .limit(1);
+
+    if (checkError) {
+      console.error('Database Error checking existing user:', checkError);
+      return NextResponse.json({ success: false, message: 'Failed to verify email status.' }, { status: 500 });
+    }
+
+    if (existingUsers && existingUsers.length > 0) {
+      return NextResponse.json({ success: false, message: 'Email is already registered' }, { status: 409 });
+    }
+
     // 1. Generate 6-digit OTP
     const otp = crypto.randomInt(100000, 999999).toString();
     
